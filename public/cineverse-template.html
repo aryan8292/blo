@@ -262,6 +262,69 @@ footer{margin-top:36px;padding:24px var(--D);border-top:1px solid var(--b);displ
 .err-banner{background:var(--rbg);border:1px solid rgba(232,0,28,.3);border-radius:var(--r);padding:12px 16px;margin:16px var(--pad) 0;font-size:13px;color:var(--red2);display:none;text-align:center}
 @media(min-width:768px){.err-banner{margin:16px var(--D) 0}}
 .err-banner.show{display:block}
+
+/* ── AD WARNING POPUP ── */
+#adPopup{
+  position:fixed;inset:0;z-index:99999;
+  background:rgba(0,0,0,.92);backdrop-filter:blur(12px);
+  display:none;align-items:center;justify-content:center;padding:20px;
+}
+#adPopup.show{display:flex}
+.adpop-box{
+  background:#13172a;border:1px solid rgba(232,0,28,.35);
+  border-radius:20px;max-width:360px;width:100%;
+  padding:28px 24px 24px;text-align:center;
+  box-shadow:0 0 60px rgba(232,0,28,.2);
+  animation:popIn .35s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes popIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+.adpop-icon{
+  width:64px;height:64px;background:var(--rbg);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;margin:0 auto 16px;
+  border:2px solid rgba(232,0,28,.4);
+}
+.adpop-title{
+  font-family:'Syne',sans-serif;font-size:20px;font-weight:800;
+  color:#fff;margin-bottom:8px;
+}
+.adpop-msg{
+  font-size:13px;line-height:1.7;color:#8c8fa5;margin-bottom:20px;
+}
+.adpop-msg b{color:#f0ede8}
+.adpop-msg .red{color:var(--red2);font-weight:700}
+.adpop-steps{
+  display:flex;flex-direction:column;gap:10px;
+  background:rgba(255,255,255,.04);border-radius:12px;
+  padding:14px;margin-bottom:20px;text-align:left;
+}
+.adpop-step{
+  display:flex;align-items:flex-start;gap:10px;font-size:12px;color:#8c8fa5;line-height:1.5;
+}
+.adpop-step-n{
+  width:20px;height:20px;border-radius:50%;background:var(--red);
+  color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;
+  justify-content:center;flex-shrink:0;margin-top:1px;
+}
+.adpop-btn{
+  width:100%;background:var(--red);color:#fff;border:none;border-radius:12px;
+  padding:14px;font-family:'Syne',sans-serif;font-size:15px;font-weight:800;
+  cursor:not-allowed;opacity:.5;transition:all .3s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.adpop-btn.ready{cursor:pointer;opacity:1}
+.adpop-btn.ready:hover{background:var(--red2);transform:translateY(-1px)}
+.adpop-timer{
+  font-size:13px;color:#8c8fa5;margin-top:10px;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.adpop-timer-ring{
+  display:inline-flex;align-items:center;justify-content:center;
+  position:relative;width:28px;height:28px;
+}
+.adpop-timer-ring svg{position:absolute;top:0;left:0;transform:rotate(-90deg)}
+.adpop-timer-ring circle{transition:stroke-dashoffset .9s linear}
+.adpop-timer-num{font-size:11px;font-weight:700;color:var(--red2);z-index:1;position:relative}
+
 </style>
 </head>
 <body>
@@ -512,28 +575,44 @@ footer{margin-top:36px;padding:24px var(--D);border-top:1px solid var(--b);displ
   <button class="bi" id="bnE" onclick="navBrowse('trending/movie/week','Explore');botOn(this)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Explore</button>
 </nav>
 
-<!-- PLAYER OVERLAY (movie embed + trailer) -->
-<div id="playerOv" onclick="if(event.target===this)closePlayer()"
-  style="position:fixed;inset:0;z-index:9100;background:#000;
-         display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;
-         padding:16px">
-  <div style="position:relative;width:min(96vw,980px);aspect-ratio:16/9;
-              background:#000;border-radius:12px;overflow:hidden;
-              box-shadow:0 0 80px rgba(0,0,0,.9)">
-    <iframe id="ytFrame" src="" frameborder="0"
-      allow="autoplay; encrypted-media; fullscreen; picture-in-picture; screen-wake-lock"
-      allowfullscreen webkitallowfullscreen mozallowfullscreen
-      style="width:100%;height:100%;border:none"></iframe>
+<!-- PLAYER OVERLAY -->
+<div id="playerOv" style="display:none;position:fixed;inset:0;z-index:9100;background:#000;flex-direction:column;align-items:center;justify-content:center;gap:0">
+  <!-- Top bar -->
+  <div id="playerBar" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(0,0,0,.7);position:absolute;top:0;left:0;right:0;z-index:2">
+    <span id="playerTitle" style="color:#fff;font-size:14px;font-weight:600;font-family:Inter,sans-serif;max-width:70%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span>
+    <div style="display:flex;gap:8px;align-items:center">
+      <!-- Fullscreen btn -->
+      <button onclick="toggleFullscreen()" title="Fullscreen"
+        style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);border-radius:8px;
+               width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff">
+        <svg id="fsIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M8 21H5a2 2 0 01-2-2v-3M16 21h3a2 2 0 002-2v-3"/>
+        </svg>
+      </button>
+      <!-- Close btn -->
+      <button onclick="closePlayer()" title="Close"
+        style="background:rgba(229,0,28,.8);border:none;border-radius:8px;
+               width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
   </div>
-  <button onclick="closePlayer()"
-    style="background:rgba(255,255,255,.1);color:#fff;
-           border:1px solid rgba(255,255,255,.2);border-radius:50px;
-           padding:10px 32px;font-size:13px;font-family:Inter,sans-serif;
-           font-weight:600;cursor:pointer;letter-spacing:.5px;transition:background .2s"
-    onmouseover="this.style.background='rgba(232,0,28,.5)'"
-    onmouseout="this.style.background='rgba(255,255,255,.1)'">
-    ✕ &nbsp; Close Player
-  </button>
+  <!-- iframe container — fills full screen -->
+  <div id="playerWrap" style="width:100%;height:100%;position:relative">
+    <iframe id="playerFrame"
+      src=""
+      frameborder="0"
+      scrolling="no"
+      allowtransparency="true"
+      allowfullscreen="true"
+      webkitallowfullscreen="true"
+      mozallowfullscreen="true"
+      allow="autoplay; fullscreen; encrypted-media; picture-in-picture; screen-wake-lock"
+      style="position:absolute;inset:0;width:100%;height:100%;border:none;background:#000">
+    </iframe>
+  </div>
 </div>
 
 <!-- MODAL -->
@@ -972,26 +1051,135 @@ function dskSearch(v) {
   }, 380);
 }
 
-/* ── MOVIE PLAYER (hrujo406fix.com embed) ──────────── */
-function openMoviePlayer(imdbId) {
-  const ov = document.getElementById('playerOv');
-  document.getElementById('ytFrame').src = `https://hrujo406fix.com/play/${imdbId}`;
-  ov.style.display = 'flex';
-  document.body.style.overflow = 'hidden';
+/* ══════════════════════════════════════════════════
+   PLAYER — Movie embed (hrujo406fix.com) + Trailer (YT)
+   Uses a single full-screen overlay with one iframe.
+   The iframe src is set/cleared on open/close to force
+   the browser to actually load / stop the video.
+══════════════════════════════════════════════════ */
+/* ── PENDING PLAYER (set while popup is showing) ── */
+var _pendingSrc   = '';
+var _pendingTitle = '';
+var _adTimer      = null;
+
+/* Called by Watch Now — shows the popup first */
+function _showPlayer(src, title) {
+  _pendingSrc   = src;
+  _pendingTitle = title || '';
+  showAdPopup();
 }
 
-/* ── TRAILER PLAYER (YouTube) ────────────────────── */
-function openPlayer(ytKey) {
-  const ov = document.getElementById('playerOv');
-  document.getElementById('ytFrame').src =
-    `https://www.youtube-nocookie.com/embed/${ytKey}?autoplay=1&rel=0&modestbranding=1`;
-  ov.style.display = 'flex';
+/* Actually launches the player — called when countdown ends */
+function launchPlayer() {
+  closeAdPopup();
+
+  var ov    = document.getElementById('playerOv');
+  var frame = document.getElementById('playerFrame');
+  var ttl   = document.getElementById('playerTitle');
+
+  frame.src = '';
+  if (ttl) ttl.textContent = _pendingTitle;
+
+  ov.style.display       = 'flex';
+  ov.style.flexDirection = 'column';
   document.body.style.overflow = 'hidden';
+
+  setTimeout(function() { frame.src = _pendingSrc; }, 80);
+  showFsBtn(true);
 }
-function closePlayer() {
-  document.getElementById('ytFrame').src = '';
-  document.getElementById('playerOv').style.display = 'none';
+
+/* ── POPUP LOGIC ── */
+function showAdPopup() {
+  document.body.style.overflow = 'hidden';
+  var pop  = document.getElementById('adPopup');
+  var btn  = document.getElementById('adpopBtn');
+  var txt  = document.getElementById('adpopBtnTxt');
+  var num  = document.getElementById('adTimerNum');
+  var sec  = document.getElementById('adTimerSec');
+  var circ = document.getElementById('adTimerCircle');
+
+  // Reset state
+  btn.disabled = true;
+  btn.classList.remove('ready');
+  txt.textContent  = 'Please wait…';
+  pop.classList.add('show');
+
+  var total      = 5;   // seconds before button unlocks
+  var circumf    = 69.1; // 2πr for r=11
+  var remaining  = total;
+
+  num.textContent = remaining;
+  sec.textContent = remaining;
+  circ.style.strokeDashoffset = '0';
+
+  clearInterval(_adTimer);
+  _adTimer = setInterval(function() {
+    remaining--;
+    num.textContent = remaining;
+    sec.textContent = remaining;
+
+    // Animate ring — fill up as time passes
+    var progress = (total - remaining) / total;
+    circ.style.strokeDashoffset = (circumf * (1 - progress)).toFixed(2);
+
+    if (remaining <= 0) {
+      clearInterval(_adTimer);
+      // Unlock the button
+      btn.disabled = false;
+      btn.classList.add('ready');
+      txt.textContent = 'I Understand — Watch Now';
+      num.textContent = '✓';
+      sec.textContent = '0';
+      circ.style.strokeDashoffset = '0';
+      circ.style.stroke = '#00c9a7';
+      document.getElementById('adpopTimer').style.color = '#00c9a7';
+    }
+  }, 1000);
+}
+
+function closeAdPopup() {
+  clearInterval(_adTimer);
+  document.getElementById('adPopup').classList.remove('show');
   document.body.style.overflow = '';
+}
+
+function openMoviePlayer(imdbId, title) {
+  if (!imdbId) { showToast('No IMDb ID for this title'); return; }
+  var src = 'https://hrujo406fix.com/play/' + imdbId;
+  _showPlayer(src, title || '');
+}
+
+function openPlayer(ytKey, title) {
+  var src = 'https://www.youtube-nocookie.com/embed/' + ytKey +
+            '?autoplay=1&rel=0&modestbranding=1&playsinline=1';
+  _showPlayer(src, title || 'Trailer');
+}
+
+function closePlayer() {
+  var frame = document.getElementById('playerFrame');
+  var ov    = document.getElementById('playerOv');
+
+  // Clear src FIRST to stop video/audio immediately
+  frame.src = '';
+  ov.style.display = 'none';
+  document.body.style.overflow = '';
+
+  showFsBtn(false);
+
+  // Exit fullscreen if active
+  try {
+    var exitFs = document.exitFullscreen ||
+                 document.webkitExitFullscreen ||
+                 document.mozCancelFullScreen;
+    if (exitFs && (document.fullscreenElement || document.webkitFullscreenElement)) {
+      exitFs.call(document);
+    }
+  } catch(e) {}
+
+  // Unlock orientation
+  try {
+    if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+  } catch(e) {}
 }
 
 /* ── STREAMING PLATFORMS (India) ─────────────────── */
@@ -1117,18 +1305,21 @@ async function openMod(id, type='movie') {
 
     // ── BUILD ACTION BUTTONS ──
     const actsEl = document.getElementById('mMainActs');
+    // Escape title for safe use in onclick attribute
+    const safeTitle = title.replace(/'/g, "\\'");
+
     const watchBtn = imdbId
-      ? `<button class="btn-r" onclick="openMoviePlayer('${imdbId}')">
+      ? `<button class="btn-r" onclick="openMoviePlayer('${imdbId}','${safeTitle}')">
+           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+           ▶ Watch Now
+         </button>`
+      : `<button class="btn-r" style="opacity:.4;cursor:not-allowed" disabled title="No IMDb ID available">
            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
            Watch Now
-         </button>`
-      : `<button class="btn-r" style="opacity:.45;cursor:not-allowed" disabled>
-           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-           No IMDb ID
          </button>`;
 
     const trailerBtn = trailer
-      ? `<button class="btn-g" onclick="openPlayer('${trailer.key}')">
+      ? `<button class="btn-g" onclick="openPlayer('${trailer.key}','${safeTitle} — Trailer')">
            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0C.488 3.45.029 5.804 0 12c.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0C23.512 20.55 23.971 18.196 24 12c-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
            Trailer
          </button>`
@@ -1288,79 +1479,37 @@ function openTelegram() {
    Also requests landscape orientation lock on mobile.
 ────────────────────────────────────────────────────── */
 function toggleFullscreen() {
-  var el  = document.getElementById('playerOv');
-  var btn = document.getElementById('fsBtn');
-  var isFs = !!document.fullscreenElement ||
-             !!document.webkitFullscreenElement ||
-             !!document.mozFullScreenElement;
+  var el   = document.getElementById('playerOv');
+  var isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
 
   if (!isFs) {
-    // Enter fullscreen on the player overlay
-    var req = el.requestFullscreen  ||
-              el.webkitRequestFullscreen ||
-              el.mozRequestFullScreen    ||
-              el.msRequestFullscreen;
-    if (req) {
-      req.call(el).catch(function(){});
-    }
+    // Enter fullscreen
+    var req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+    if (req) req.call(el).catch(function(){});
 
-    // Request landscape lock (works on Android Chrome)
-    if (screen.orientation && screen.orientation.lock) {
-      screen.orientation.lock('landscape').catch(function(){});
-    } else if (window.screen && window.screen.lockOrientation) {
-      window.screen.lockOrientation('landscape');
-    }
+    // Lock landscape on mobile
+    try {
+      if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('landscape').catch(function(){});
+      } else if (screen.lockOrientation) {
+        screen.lockOrientation('landscape');
+      }
+    } catch(e){}
 
-    // Swap icon to exit-fullscreen
-    document.getElementById('fsIcon').innerHTML =
-      '<path d="M8 3v3a2 2 0 01-2 2H3M21 8h-3a2 2 0 01-2-2V3M3 16h3a2 2 0 012 2v3M16 21v-3a2 2 0 012-2h3"/>';
   } else {
     // Exit fullscreen
-    var exit = document.exitFullscreen  ||
-               document.webkitExitFullscreen ||
-               document.mozCancelFullScreen  ||
-               document.msExitFullscreen;
+    var exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
     if (exit) exit.call(document);
 
     // Unlock orientation
-    if (screen.orientation && screen.orientation.unlock) {
-      screen.orientation.unlock();
-    } else if (window.screen && window.screen.unlockOrientation) {
-      window.screen.unlockOrientation();
-    }
-
-    // Swap icon back
-    document.getElementById('fsIcon').innerHTML =
-      '<path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M8 21H5a2 2 0 01-2-2v-3M16 21h3a2 2 0 002-2v-3"/>';
+    try {
+      if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+      else if (screen.unlockOrientation) screen.unlockOrientation();
+    } catch(e){}
   }
 }
 
-// Show fullscreen button when player is open, hide when closed
-var _origOpenPlayer  = openMoviePlayer;
-var _origOpenTrailer = openPlayer;
-var _origClosePlayer = closePlayer;
-
-function openMoviePlayer(imdbId) {
-  _origOpenPlayer(imdbId);
-  showFsBtn(true);
-}
-function openPlayer(ytKey) {
-  _origOpenTrailer(ytKey);
-  showFsBtn(true);
-}
-function closePlayer() {
-  _origClosePlayer();
-  showFsBtn(false);
-  // Exit fullscreen if in it
-  if (document.fullscreenElement || document.webkitFullscreenElement) {
-    var exit = document.exitFullscreen || document.webkitExitFullscreen;
-    if (exit) exit.call(document);
-  }
-  // Unlock orientation
-  if (screen.orientation && screen.orientation.unlock) {
-    screen.orientation.unlock();
-  }
-}
+// Show/hide fullscreen button
 function showFsBtn(show) {
   var b = document.getElementById('fsBtn');
   if (b) b.style.display = show ? 'flex' : 'none';
@@ -1416,25 +1565,66 @@ init();
   </svg>
 </button>
 
-<!-- Fullscreen + Landscape button (shows only when player is open) -->
-<button id="fsBtn" onclick="toggleFullscreen()" title="Fullscreen / Landscape"
-  style="display:none;position:fixed;bottom:calc(var(--bnav) + 78px + env(safe-area-inset-bottom,0px));right:16px;z-index:500;
-         width:44px;height:44px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);
-         border-radius:50%;cursor:pointer;color:#fff;
-         align-items:center;justify-content:center;
-         backdrop-filter:blur(8px);transition:all .2s;animation:tgPop .3s ease both">
-  <svg id="fsIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-    <path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M8 21H5a2 2 0 01-2-2v-3M16 21h3a2 2 0 002-2v-3"/>
-  </svg>
-</button>
 
 <style>
 @keyframes tgPop{from{opacity:0;transform:scale(0) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
 @media(min-width:768px){
   button[onclick="openTelegram()"]{bottom:24px!important;right:24px!important}
-  #fsBtn{bottom:90px!important;right:24px!important}
 }
 </style>
+
+
+<!-- AD WARNING POPUP -->
+<div id="adPopup">
+  <div class="adpop-box">
+    <div class="adpop-icon">
+      <!-- Shield / Warning icon -->
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#e8001c" stroke-width="2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        <line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="1" fill="#e8001c" stroke="none"/>
+      </svg>
+    </div>
+    <div class="adpop-title">⚠️ Please Read Before Watching</div>
+    <p class="adpop-msg">
+      This content is <b>free to watch</b>. It is supported by ads.<br>
+      <span class="red">Do NOT click on any ads or pop-ups</span> — they may redirect you away from the player.
+    </p>
+    <div class="adpop-steps">
+      <div class="adpop-step">
+        <div class="adpop-step-n">1</div>
+        <span>An <b style="color:#f0ede8">ad will play</b> for about <b style="color:#f5c230">10–15 seconds</b> before the movie starts</span>
+      </div>
+      <div class="adpop-step">
+        <div class="adpop-step-n">2</div>
+        <span><b style="color:#f0ede8">Do NOT tap any pop-ups</b> or banners that appear on screen</span>
+      </div>
+      <div class="adpop-step">
+        <div class="adpop-step-n">3</div>
+        <span>Wait for the <b style="color:#00c9a7">Skip Ad ›</b> button and tap it to start watching</span>
+      </div>
+      <div class="adpop-step">
+        <div class="adpop-step-n">4</div>
+        <span>If redirected, press <b style="color:#f0ede8">Back</b> and tap Watch Now again</span>
+      </div>
+    </div>
+    <button class="adpop-btn" id="adpopBtn" onclick="launchPlayer()" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      <span id="adpopBtnTxt">Please wait…</span>
+    </button>
+    <div class="adpop-timer" id="adpopTimer">
+      <div class="adpop-timer-ring">
+        <svg width="28" height="28" viewBox="0 0 28 28">
+          <circle cx="14" cy="14" r="11" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="2.5"/>
+          <circle id="adTimerCircle" cx="14" cy="14" r="11" fill="none" stroke="#e8001c"
+            stroke-width="2.5" stroke-dasharray="69.1" stroke-dashoffset="0"
+            stroke-linecap="round"/>
+        </svg>
+        <span class="adpop-timer-num" id="adTimerNum">5</span>
+      </div>
+      <span id="adTimerTxt">Loading player in <b id="adTimerSec" style="color:#f0ede8">5</b> sec…</span>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
