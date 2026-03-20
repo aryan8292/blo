@@ -1231,30 +1231,56 @@ let tT;
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(tT); tT=setTimeout(()=>t.classList.remove('on'),2500); }
 
 /* ── TELEGRAM DEEP LINK ─────────────────────────────
-   Tries to open Telegram app first via tg:// scheme.
-   If app not installed, falls back to https:// in browser.
+   Works in: Browser, Android WebView, iOS WebView, PWA
+   Strategy:
+   - Android WebView: uses intent:// scheme (guaranteed app open)
+   - iOS / Safari:    uses tg:// scheme with https fallback
+   - Desktop browser: opens https://t.me directly
 ────────────────────────────────────────────────────── */
 function openTelegram() {
-  var botUsername = 'StreamTub_bot';
-  var webLink     = 'tg://resolve?domain=' + botUsername;
-  var webLink     = 'https://t.me/' + botUsername;
+  var bot     = 'StreamTub_bot';
+  var webUrl  = 'https://t.me/' + bot;
+  var ua      = navigator.userAgent || '';
+  var isAndroid = /android/i.test(ua);
+  var isIOS     = /iphone|ipad|ipod/i.test(ua);
+  var isWebView = /wv|WebView/i.test(ua) ||
+                  (isAndroid && /Version\/[\d.]+/.test(ua)) ||
+                  (typeof window.Android !== 'undefined') ||
+                  (window.navigator.standalone === true);
 
-  // Try opening the Telegram app via deep link
-  var start = Date.now();
-  var appWindow = window.open(webLink, '_blank');
+  if (isAndroid) {
+    // Android: use intent:// — works in WebView AND browser
+    // Falls back to Play Store if Telegram not installed
+    var intentUrl =
+      'intent://resolve?domain=' + bot +
+      '#Intent;' +
+      'scheme=tg;' +
+      'package=org.telegram.messenger;' +
+      'S.browser_fallback_url=' + encodeURIComponent(webUrl) + ';' +
+      'end';
+    window.location.href = intentUrl;
+  } else if (isIOS) {
+    // iOS: try tg:// deep link, fall back to https after 1.2s
+    var opened = false;
+    var tgUrl  = 'tg://resolve?domain=' + bot;
 
-  // After 1.5s, if page is still visible (app didn't open / not installed)
-  // fall back to opening the web link in a new tab
-  setTimeout(function() {
-    if (!document.hidden) {
-      // App didn't take over — open web fallback
-      window.open(webLink, '_blank');
-    }
-    // Clean up the blank window if it opened
-    if (appWindow && !appWindow.closed) {
-      try { appWindow.close(); } catch(e) {}
-    }
-  }, 1500);
+    // Hidden iframe trick — won't trigger "app not found" alert
+    var iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = tgUrl;
+    document.body.appendChild(iframe);
+
+    // Fallback after timeout if app didn't respond
+    setTimeout(function() {
+      document.body.removeChild(iframe);
+      if (!document.hidden) {
+        window.open(webUrl, '_blank');
+      }
+    }, 1200);
+  } else {
+    // Desktop browser — open web link directly
+    window.open(webUrl, '_blank');
+  }
 }
 
 /* ── FULLSCREEN + LANDSCAPE ─────────────────────────
