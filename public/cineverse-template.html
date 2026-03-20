@@ -267,9 +267,8 @@ footer{margin-top:36px;padding:24px var(--D);border-top:1px solid var(--b);displ
 #adPopup{
   position:fixed;inset:0;z-index:99999;
   background:rgba(0,0,0,.92);backdrop-filter:blur(12px);
-  display:none;align-items:center;justify-content:center;padding:20px;
+  display:none;flex-direction:row;align-items:center;justify-content:center;padding:20px;
 }
-#adPopup.show{display:flex}
 .adpop-box{
   background:#13172a;border:1px solid rgba(232,0,28,.35);
   border-radius:20px;max-width:360px;width:100%;
@@ -576,7 +575,7 @@ footer{margin-top:36px;padding:24px var(--D);border-top:1px solid var(--b);displ
 </nav>
 
 <!-- PLAYER OVERLAY -->
-<div id="playerOv" style="display:none;position:fixed;inset:0;z-index:9100;background:#000;flex-direction:column;align-items:center;justify-content:center;gap:0">
+<div id="playerOv" style="display:none;position:fixed;inset:0;z-index:9100;background:#000;flex-direction:column;">
   <!-- Top bar -->
   <div id="playerBar" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(0,0,0,.7);position:absolute;top:0;left:0;right:0;z-index:2">
     <span id="playerTitle" style="color:#fff;font-size:14px;font-weight:600;font-family:Inter,sans-serif;max-width:70%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span>
@@ -600,7 +599,7 @@ footer{margin-top:36px;padding:24px var(--D);border-top:1px solid var(--b);displ
     </div>
   </div>
   <!-- iframe container — fills full screen -->
-  <div id="playerWrap" style="width:100%;height:100%;position:relative">
+  <div id="playerWrap" style="position:absolute;inset:0;width:100%;height:100%;">
     <iframe id="playerFrame"
       src=""
       frameborder="0"
@@ -1057,40 +1056,33 @@ function dskSearch(v) {
    The iframe src is set/cleared on open/close to force
    the browser to actually load / stop the video.
 ══════════════════════════════════════════════════ */
-/* ── PENDING PLAYER (set while popup is showing) ── */
-var _pendingSrc   = '';
-var _pendingTitle = '';
-var _adTimer      = null;
+/* ════════════════════════════════════════════
+   PLAYER + AD POPUP — fully rebuilt, no bugs
+   ════════════════════════════════════════════ */
+var PLAYER_SRC   = '';
+var PLAYER_TITLE = '';
+var AD_TIMER     = null;
+var AD_SECS      = 5;
 
-/* Called by Watch Now — shows the popup first */
-function _showPlayer(src, title) {
-  _pendingSrc   = src;
-  _pendingTitle = title || '';
-  showAdPopup();
+/* ── Step 1: Watch Now clicked ─────────────────
+   Stores the URL & title, shows the popup        */
+function openMoviePlayer(imdbId, title) {
+  if (!imdbId) { showToast('No IMDb ID — try another title'); return; }
+  PLAYER_SRC   = 'https://hrujo406fix.com/play/' + imdbId;
+  PLAYER_TITLE = title || '';
+  showAdWarning();
 }
 
-/* Actually launches the player — called when countdown ends */
-function launchPlayer() {
-  closeAdPopup();
-
-  var ov    = document.getElementById('playerOv');
-  var frame = document.getElementById('playerFrame');
-  var ttl   = document.getElementById('playerTitle');
-
-  frame.src = '';
-  if (ttl) ttl.textContent = _pendingTitle;
-
-  ov.style.display       = 'flex';
-  ov.style.flexDirection = 'column';
-  document.body.style.overflow = 'hidden';
-
-  setTimeout(function() { frame.src = _pendingSrc; }, 80);
-  showFsBtn(true);
+function openPlayer(ytKey, title) {
+  PLAYER_SRC   = 'https://www.youtube-nocookie.com/embed/' + ytKey + '?autoplay=1&rel=0&playsinline=1';
+  PLAYER_TITLE = title || 'Trailer';
+  showAdWarning();
 }
 
-/* ── POPUP LOGIC ── */
-function showAdPopup() {
+/* ── Step 2: Show non-cancelable ad warning ──── */
+function showAdWarning() {
   document.body.style.overflow = 'hidden';
+
   var pop  = document.getElementById('adPopup');
   var btn  = document.getElementById('adpopBtn');
   var txt  = document.getElementById('adpopBtnTxt');
@@ -1098,88 +1090,94 @@ function showAdPopup() {
   var sec  = document.getElementById('adTimerSec');
   var circ = document.getElementById('adTimerCircle');
 
-  // Reset state
-  btn.disabled = true;
-  btn.classList.remove('ready');
-  txt.textContent  = 'Please wait…';
-  pop.classList.add('show');
+  // Reset visuals
+  txt.textContent = 'Please wait…';
+  btn.style.opacity = '0.45';
+  btn.style.cursor  = 'not-allowed';
+  btn.setAttribute('data-ready', 'no');
 
-  var total      = 5;   // seconds before button unlocks
-  var circumf    = 69.1; // 2πr for r=11
-  var remaining  = total;
-
-  num.textContent = remaining;
-  sec.textContent = remaining;
+  num.textContent = AD_SECS;
+  sec.textContent = AD_SECS;
+  circ.style.stroke = '#e8001c';
   circ.style.strokeDashoffset = '0';
+  document.getElementById('adpopTimer').style.color = '';
 
-  clearInterval(_adTimer);
-  _adTimer = setInterval(function() {
+  // Show popup
+  pop.style.display = 'flex';
+
+  var remaining = AD_SECS;
+  var circumf   = 69.1;
+
+  clearInterval(AD_TIMER);
+  AD_TIMER = setInterval(function() {
     remaining--;
-    num.textContent = remaining;
-    sec.textContent = remaining;
-
-    // Animate ring — fill up as time passes
-    var progress = (total - remaining) / total;
-    circ.style.strokeDashoffset = (circumf * (1 - progress)).toFixed(2);
+    if (num) num.textContent = remaining;
+    if (sec) sec.textContent = remaining;
+    var progress = (AD_SECS - remaining) / AD_SECS;
+    if (circ) circ.style.strokeDashoffset = (circumf * (1 - progress)).toFixed(1);
 
     if (remaining <= 0) {
-      clearInterval(_adTimer);
-      // Unlock the button
-      btn.disabled = false;
-      btn.classList.add('ready');
-      txt.textContent = 'I Understand — Watch Now';
-      num.textContent = '✓';
-      sec.textContent = '0';
-      circ.style.strokeDashoffset = '0';
-      circ.style.stroke = '#00c9a7';
-      document.getElementById('adpopTimer').style.color = '#00c9a7';
+      clearInterval(AD_TIMER);
+      // Unlock button
+      if (txt)  txt.textContent = '✓  I Understand — Watch Now';
+      if (btn)  { btn.style.opacity = '1'; btn.style.cursor = 'pointer'; btn.setAttribute('data-ready','yes'); }
+      if (num)  num.textContent = '✓';
+      if (circ) { circ.style.strokeDashoffset = '0'; circ.style.stroke = '#00c9a7'; }
+      if (document.getElementById('adpopTimer')) document.getElementById('adpopTimer').style.color = '#00c9a7';
     }
   }, 1000);
 }
 
-function closeAdPopup() {
-  clearInterval(_adTimer);
-  document.getElementById('adPopup').classList.remove('show');
-  document.body.style.overflow = '';
-}
+/* ── Step 3: Button clicked — launch player ──── */
+function launchPlayer() {
+  // Guard: ignore if countdown not done
+  var btn = document.getElementById('adpopBtn');
+  if (!btn || btn.getAttribute('data-ready') !== 'yes') return;
 
-function openMoviePlayer(imdbId, title) {
-  if (!imdbId) { showToast('No IMDb ID for this title'); return; }
-  var src = 'https://hrujo406fix.com/play/' + imdbId;
-  _showPlayer(src, title || '');
-}
+  clearInterval(AD_TIMER);
 
-function openPlayer(ytKey, title) {
-  var src = 'https://www.youtube-nocookie.com/embed/' + ytKey +
-            '?autoplay=1&rel=0&modestbranding=1&playsinline=1';
-  _showPlayer(src, title || 'Trailer');
-}
+  // Hide popup
+  document.getElementById('adPopup').style.display = 'none';
+  document.body.style.overflow = 'hidden';
 
-function closePlayer() {
-  var frame = document.getElementById('playerFrame');
+  // Show player overlay
   var ov    = document.getElementById('playerOv');
+  var frame = document.getElementById('playerFrame');
+  var ttl   = document.getElementById('playerTitle');
 
-  // Clear src FIRST to stop video/audio immediately
-  frame.src = '';
+  if (ttl) ttl.textContent = PLAYER_TITLE;
+
+  // Show overlay
+  ov.style.display = 'flex';
+
+  // Clear + reload iframe
+  frame.src = 'about:blank';
+  setTimeout(function() {
+    frame.src = PLAYER_SRC;
+  }, 200);
+}
+
+/* ── Close player ────────────────────────────── */
+function closePlayer() {
+  var ov    = document.getElementById('playerOv');
+  var frame = document.getElementById('playerFrame');
+
+  // Stop media
+  frame.src = 'about:blank';
+
+  // Hide
   ov.style.display = 'none';
   document.body.style.overflow = '';
 
-  showFsBtn(false);
-
-  // Exit fullscreen if active
+  // Exit fullscreen
   try {
-    var exitFs = document.exitFullscreen ||
-                 document.webkitExitFullscreen ||
-                 document.mozCancelFullScreen;
-    if (exitFs && (document.fullscreenElement || document.webkitFullscreenElement)) {
-      exitFs.call(document);
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
     }
   } catch(e) {}
 
   // Unlock orientation
-  try {
-    if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
-  } catch(e) {}
+  try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch(e) {}
 }
 
 /* ── STREAMING PLATFORMS (India) ─────────────────── */
@@ -1409,7 +1407,7 @@ document.getElementById('mOv').addEventListener('click', e => { if(e.target===e.
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     // Close in order: player → modal → search
-    if (document.getElementById('playerOv').style.display === 'flex') { closePlayer(); return; }
+    if (document.getElementById('playerOv').style.display !== 'none' && document.getElementById('playerOv').style.display !== '') { closePlayer(); return; }
     if (document.getElementById('mOv').classList.contains('on'))       { closeMod();   return; }
     if (document.getElementById('sov').classList.contains('open'))     { closeSov();   return; }
   }
@@ -1509,11 +1507,7 @@ function toggleFullscreen() {
   }
 }
 
-// Show/hide fullscreen button
-function showFsBtn(show) {
-  var b = document.getElementById('fsBtn');
-  if (b) b.style.display = show ? 'flex' : 'none';
-}
+function showFsBtn(show) { /* fullscreen btn is in player top bar */ }
 
 // Sync fullscreen icon when user presses Esc or device auto-exits
 document.addEventListener('fullscreenchange',       syncFsIcon);
@@ -1607,7 +1601,10 @@ init();
         <span>If redirected, press <b style="color:#f0ede8">Back</b> and tap Watch Now again</span>
       </div>
     </div>
-    <button class="adpop-btn" id="adpopBtn" onclick="launchPlayer()" disabled>
+    <button class="adpop-btn" id="adpopBtn"
+      data-ready="no"
+      onclick="launchPlayer()"
+      style="opacity:0.45;cursor:not-allowed">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
       <span id="adpopBtnTxt">Please wait…</span>
     </button>
