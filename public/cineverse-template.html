@@ -1236,12 +1236,12 @@ function showToast(msg){ const t=document.getElementById('toast'); t.textContent
 ────────────────────────────────────────────────────── */
 function openTelegram() {
   var botUsername = 'StreamTub_bot';
-  var appLink     = 'tg://resolve?domain=' + botUsername;
+  var webLink     = 'tg://resolve?domain=' + botUsername;
   var webLink     = 'https://t.me/' + botUsername;
 
   // Try opening the Telegram app via deep link
   var start = Date.now();
-  var appWindow = window.open(appLink, '_blank');
+  var appWindow = window.open(webLink, '_blank');
 
   // After 1.5s, if page is still visible (app didn't open / not installed)
   // fall back to opening the web link in a new tab
